@@ -1,0 +1,14 @@
+--- paketto-1.10/src/lc.c	2002-12-24 15:09:00.000000000 +0000
++++ paketto-1.10-patched/src/lc.c	2004-09-11 15:42:47.000000000 +0100
+@@ -296,7 +296,10 @@
+ 			   kill(pid, SIGKILL);
+ 			   wait(pid);
+ 			   exit(0);
+-		   }
++		   } else {
++			   wait(pid);
++			   exit(0);
++                   }
+ 		}			   	
+ 	}
+ 	

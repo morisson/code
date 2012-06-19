@@ -1,0 +1,14 @@
+--- paketto-1.10/src/paketto.h	2002-12-23 05:42:22.000000000 +0000
++++ paketto-1.10-patched/src/paketto.h	2004-09-11 15:39:42.000000000 +0100
+@@ -17,10 +17,7 @@
+ #include <sys/ioccom.h>
+ #endif
+ #ifndef _IOW
+-#error "We couldn't find the system macro _IOW on your machine...if you run
+-find /usr/include | xargs grep _IOW
+-and find some file other than sys/sockio.h containing the macro, email
+-dan@doxpara.com and I'll get it in the next build."
++#error "We couldn't find the system macro _IOW on your machine...if you run find /usr/include | xargs grep _IOW and find some file other than sys/sockio.h containing the macro, email dan@doxpara.com and I'll get it in the next build."
+ #endif
+    
+ #include <sys/types.h>

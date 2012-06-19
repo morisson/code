@@ -1,0 +1,59 @@
+/* 17092003
+ This patch allows for Kismet to show SSIDs which are filled
+only with the space character (blank SSIDs). Prior to this patch 
+blank SSIDs are not identified, showing "<no ssid>", which is not
+accurate.
+It also changes the represantion of "Name" and "SSID" on the
+Network Details window, since the SSID will be between quotation
+marks (so
+we can "see" the blank SSIDs.
+This patch is against Kismet 3.1.0 (devel)
+
+Hopefully it doesn't brake anything else :)
+
+-- Bruno Morisson <morisson@genhex.org>
+*/
+
+diff -urb kismet-devel/packetracker.cc kismet-devel-blank/packetracker.cc
+--- kismet-devel/packetracker.cc	2003-08-24 15:39:30.000000000 +0100
++++ kismet-devel-blank/packetracker.cc	2003-09-16 17:56:36.000000000 +0100
+@@ -142,13 +142,9 @@
+ 
+ // Is a string blank?
+ bool Packetracker::IsBlank(const char *s) {
+-    int len, i;
+     if (NULL == s) { return true; }
+-    if (0 == (len = strlen(s))) { return true; }
+-    for (i = 0; i < len; ++i) {
+-        if (' ' != s[i]) { return false; }
+-    }
+-    return true;
++    if (0 == strlen(s)) { return true; }
++    return false;
+ }
+ 
+ // Periodic tick to handle events.  We expect this once a second.
+diff -urb kismet-devel/panelfront_display.cc kismet-devel-blank/panelfront_display.cc
+--- kismet-devel/panelfront_display.cc	2003-09-02 07:20:50.000000000 +0100
++++ kismet-devel-blank/panelfront_display.cc	2003-09-16 16:43:42.000000000 +0100
+@@ -1362,9 +1362,9 @@
+         print_width = 1023;
+ 
+     if (details_network->name == "")
+-        snprintf(output, print_width, "Name    : %s", details_network->virtnet->ssid.c_str());
++        snprintf(output, print_width, "Name    : \"%s\"", details_network->virtnet->ssid.c_str());
+     else
+-        snprintf(output, print_width, "Name    : %s", details_network->name.c_str());
++        snprintf(output, print_width, "Name    : \"%s\"", details_network->name.c_str());
+     kwin->text.push_back(output);
+ 
+     if (details_network->networks.size() > 1) {
+@@ -1455,7 +1455,7 @@
+ 
+         // Convert the current details network into a vector of strings, so that
+         // we can scroll it
+-        snprintf(output, print_width, "SSID    : %s", dnet->ssid.c_str());
++        snprintf(output, print_width, "SSID    : \"%s\"", dnet->ssid.c_str());
+         kwin->text.push_back(output);
+     
+         if (dnet->cloaked) {

@@ -1,0 +1,132 @@
+Multiple XSS Vulnerabilities in PHPNuke 6.0
+-------------------------------------------
+
+Summary: We have found 7 diferent cross-site-scripting
+vulnerabilities in PHPNuke 6.0 which allow for anyone
+to steal the authentication cookies from users and Administrators.
+Some of them include several ways to insert scripting into the site,
+so they're quite a few more than 7 (actually 22 input boxes).
+Most of them are *VERY CRITICAL* since they are totally directed to the
+Administrators, unless they view the source of the HTML page carefully. 
+
+
+
+Risk Level: To each vulnerability we gave a risk level, with
+the following levels: Low , Medium, Critical. Most are Critical.
+
+
+
+Vendor Status: Vendor notified of first two bugs on 4 Oct 2002 through PHPNuke's site.
+               Vendor notified of all bugs through E-Mail on 7 Oct 2002.
+
+
+
+Details:
+
+1] RDF/RSS Parser (Risk: medium)
+
+PHP-Nuke's rdf/rss parser doesn't strip html tags when parsing RSS files. The <title> tag isn't stripped, so if it contains any valid HTML or scripting, the user's browser will run the script.
+
+As a proof of concept, go to your account on a php-nuke site, and on your prefered site just put some URL with an rdf file with an item like this one:
+
+<item rdf:about="http://www.somesite.dom">
+<title><script>alert('cookie: '+ document.cookie)</script></title>
+<link>http://www.somesite.dom/</link>
+<description>Puke It</description>
+</item>
+
+We have one rdf file like that one at http://www.genhex.org/php-puke.rdf
+
+
+
+2] Private Messages (Risk: critical)
+
+Private messages module allows for html in the body. although it
+strips <script> tags, it allows for events on <a href> tags. hence,
+on the message body just write:
+<a href="X" onmouseover="alert(document.cookie">x</a>
+
+I leave up to your imagination more interesting ways to explore this.
+
+
+
+3] Journal (Risk: critical)
+The journal doesn't strip html tags. period.
+Put "<script> alert(document.cookie)</script>" somewhere 
+(in the title for better effect :)) and when someone goes
+to see your journal, the script will be run. 
+
+
+
+4] Your Info (Risk: critical)
+Most fields on the "Your Info" section of don't strip
+html tags, or don't correctly validate input.
+
+On Your HomePage, you can put an URL to some site. PHPNuke doesn't
+correcty validate the data. You can do some "HTML Injection",
+for instance, insert as your URL:
+http://x/" onmouseover="alert(document.cookie)
+
+PHPNuke will turn this into: <a href="http://x/" onmouseover="alert(document.cookie)">http://x/" onmouseover="alert(document.cookie)</a>
+
+It's not very stealthy, but most users will probably put their mouse over it
+anyway. 
+You must keep the URL as small as possible, since phpnuke will truncate the URL, thus it will not work.
+
+The next fields don't strip tags:
+Real Name
+Fake Email
+Your Location
+Your Interests
+Your Occupation
+Signature
+
+These ones allow for <script> tags, thus turning the attack
+completely transparent to the victim.
+
+The "real name" and "fake email" fields are even more dangerous,
+because if someone lists the users, the script will be executed.
+All the others require the victim to go to the attacker's info
+page.
+
+
+
+5] Search (Risk: Low)
+This is a low risk CSS bug, since as far as we could tell
+the user must put the script himself on the search field.
+Anyway, the box doesn't correctly strips the query string,
+altough it does if it is submited as a GET request...
+
+
+
+6] Downloads (Risk: Critical)
+This module accepts <a href> events in the fields:
+Program Name, File Link, Author's Name, Author's Email,
+and Homepage.
+
+Any user that can submit a download can insert some javascript in
+those fields. When an Admin goes to check the download, depending
+on the event, javascript will be executed.
+Most fields will look very suspitious, except for File Link. File Link will
+look perfectly normal.
+If the Admin puts his mouse over the link (or other event) by accident (or on purpose),
+you can steal his cookie.
+
+
+
+7] Web Links (Risk: Critical)
+Exactly the same as the Downloads module.
+
+
+
+Credit:
+Vulnerabilities discovered by Bruno Morisson <morisson@genhex.org>
+and Pedro Inacio <pedro.inacio@ptnix.com>.
+
+
+
+Copyright Notice:
+This advisory, parts of it, or the information herein can be reproduced
+as long as credit is given.
+
+

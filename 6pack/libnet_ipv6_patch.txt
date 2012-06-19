@@ -1,0 +1,146 @@
+To: 	Libnet
+Subject: 	Re: Libnet install probs
+Date: 	May 2 2003 12:22AM
+Author: 	Bruno Morisson <morisson genhex org>
+Message-ID: 	<1051834972.8126.38.camel@genhex.net.dhis.org>
+In-Reply-To: 	<20030429233646.2444.qmail@www.securityfocus.com>
+
+Hi,
+
+Libnet's IPv6 support AFAIK isn't working at all, at least on both Linux
+and OpenBSD (the versions I tried). Try using the attached patch. I
+don't know if Mike agrees with the changes, but it works for me in Linux
+(not on other OSes...see below why).
+
+Patch changelog:
+- The libnet_init() function wasn't working, since it tries to set
+IP_HDRINCL option on the raw socket, which RFC 2292 states it's not
+needed, and in fact doesn't work at all on Linux 2.4 kernels and (at
+least) openbsd 3.2 (I suspect 3.3 also doesn't accept that option, as
+well as all OSes using the KAME stack).
+
+- The other problems were in the IPv6 resolver functions,
+libnet_name2addr6() and libnet_name2addr6_r() (at least on x86) didn't
+work correctly when LIBNET_DONT_RESOLV was set. I replaced the sscanf()
+and sprintf() with inet_pton() and inet_ntop(), since these are standard
+IPv6 address manipulation functions.
+
+
+I created this patch for the development of an IPv6 halfopen portscanner
+(available probably next weekend at http://www.genhex.org/projects.html)
+, and I've been using Libnet with this patch for quite some time now on
+Linux with success. OpenBSD (and probably all KAME stack based OSes)
+make it pretty harder to create IPv6 packets with raw sockets, you
+either set the socket protocol on creation, or you can't change it
+afterwards (at least I still haven't figured out how...). For instance,
+if the socket is created for "IPPROTO_RAW" (like it is done by
+libnet_init), which in IPv4 means you can set any protocol, in IPv6 this
+has no special meaning, and you really create packets with protocol 255.
+If anyone has some ideas on how to overcome this (except link layer
+packet creation, obviously ;)), I'd love to hear them.
+On linux it works perfectly, since the IPv6 stack thankfully breaks the
+RFCs at least regarding to raw socket creation :)
+
+Hope this helps.
+
+Regards,
+Bruno Morisson <morisson@genhex.org>
+
+
+
+diff -rbu Libnet-latest/src/libnet_raw.c Libnet-1.1.0/src/libnet_raw.c
+--- Libnet-latest/src/libnet_raw.c	2002-08-05 23:26:03.000000000 +0100
++++ Libnet-1.1.0/src/libnet_raw.c	2003-02-22 03:27:59.000000000 +0000
+@@ -131,22 +131,7 @@
+         goto bad;
+     }
+ 
+-#if !(__WIN32__)
+-    if (setsockopt(l->fd, IPPROTO_IP, IP_HDRINCL, oneptr, sizeof(one)) == -1)
+-#else
+-/* XXX need to port this
+-    one = TRUE;
+-    if (setsockopt(l->fd, IPPROTO_IP, IP_HDRINCL, (char *)&one,
+-            sizeof(one)) == -1)
+-*/
+-#endif
+ 
+-    {
+-        snprintf(l->err_buf, LIBNET_ERRBUF_SIZE, 
+-                "libnet_open_raw6(): set IP_HDRINCL failed: %s\n",
+-                strerror(errno));
+-        goto bad;
+-    }
+ 
+ #if (__linux__)
+     if (setsockopt(l->fd, SOL_SOCKET, SO_BROADCAST, oneptr, sizeof(one)) ==
+-1)
+diff -rbu Libnet-latest/src/libnet_resolve.c Libnet-1.1.0/src/libnet_resolve.c
+--- Libnet-latest/src/libnet_resolve.c	2002-08-05 23:26:03.000000000 +0100
++++ Libnet-1.1.0/src/libnet_resolve.c	2003-02-22 05:19:47.000000000 +0000
+@@ -190,15 +190,8 @@
+     }
+     if (!host_ent)
+     {
+-        sprintf(hostname, "%x:%x:%x:%x:%x:%x:%x:%x",
+-                ntohs(addr.libnet_s6_addr[0]),
+-                ntohs(addr.libnet_s6_addr[1]),
+-                ntohs(addr.libnet_s6_addr[2]),
+-                ntohs(addr.libnet_s6_addr[3]),
+-                ntohs(addr.libnet_s6_addr[4]),
+-                ntohs(addr.libnet_s6_addr[5]),
+-                ntohs(addr.libnet_s6_addr[6]),
+-                ntohs(addr.libnet_s6_addr[7]));
++      inet_ntop(AF_INET6,&addr,hostname,hostname_len);
++    
+     }
+     else
+     {
+@@ -211,10 +204,9 @@
+ struct libnet_in6_addr
+ libnet_name2addr6(libnet_t *l, u_char *host_name, u_short use_name)
+ {
+-    unsigned int tmp[8];
+     struct libnet_in6_addr addr;
+     struct hostent *host_ent; 
+-    int i;
++
+    
+     if (use_name == LIBNET_RESOLVE)
+     {
+@@ -229,30 +221,14 @@
+     }
+     else
+     {
+-        if (!isxdigit(host_name[0]))
+-        {
++        if(!inet_pton(AF_INET6,host_name,&addr)) {
+             if (l)
+             {
+                 snprintf(l->err_buf, LIBNET_ERRBUF_SIZE,
+-                    "libnet_name2addr6(): expecting hexadecimal format\n");
++                    "libnet_name2addr6(): invalid IPv6 address\n");
+             }
+             return (in6addr_error);
+         }
+-        if (sscanf(host_name,"%x:%x:%x:%x:%x:%x:%x:%x",
+-                    &tmp[0], &tmp[1], &tmp[2], &tmp[3], &tmp[4], &tmp[5],
+-                    &tmp[6], &tmp[7]) < 8)
+-        {
+-            if (l)
+-            {
+-                snprintf(l->err_buf, LIBNET_ERRBUF_SIZE,
+-                "libnet_name2addr6(): value greater than 0xffff\n");
+-            }
+-                return (in6addr_error);
+-        }
+-        for (i = 0; i < 8; i++)
+-        {
+-            addr.libnet_s6_addr[i] = htons(tmp[i]);
+-        }
+         return (addr);
+     }
+ }
+
+
+
