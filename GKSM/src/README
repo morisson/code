@@ -1,0 +1,65 @@
+DISCLAIMER:
+
+THIS IS UNTESTED CODE. BE VERY CAREFUL. I SHALL NOT BE
+HELD RESPONSIBLE FOR ANY DAMAGES CAUSED BY USING THIS
+SOFTWARE.
+
+To compile, comment -D_README_ on the Makefile.
+
+
+--- Description:
+
+This is simply example code for implementing ACLs based on
+linux capabilities, with some enhancements, on linux
+2.4.x kernel.
+It basically replaces the socketcall syscall
+with a new one that checks the process uid against an ACL,
+and it gives CAP_NET_BIND_SERVICE if the ACL permits it to
+bind to a specific port. 
+After that, the original socketcall syscall is called
+and the process will be allowed to bind to the port it
+requested, due to capabilities, using cap_raise().
+When the original socketcall() returns, the process' original 
+capabilities are restored.
+For more detail, see the source.
+The userland utility simply uses an ioctl to send
+the ACL to the kernel, usage: ./gksmadm <uid> <port>
+
+You'll also need to create a char device with major number 241,
+named /dev/gksm.
+
+--- What's next ?
+
+A lot. I coded this in a few hours, just to see if it
+could be done. It has bugs, and lacks a lot of things (locks,
+and we cannot define if the port to bind is TCP or UDP, for
+instance), and in some cases it may cause some problems in the kernel.
+
+
+I am rewriting all of this, including some other features, one of
+which I believe is fundamental for this module to be of any use,
+mainly a setuid() ACL. If we allow a uid to bind to some port,
+and we don't arrange some way for it to drop that privilege, if
+an attacker can compromise the daemon running on that port, he
+can hijack that port. The solution, I believe, is to allow that
+same uid to do a setuid() to an unprivileged user (nobody, for example),
+dropping its bind privilege (for example, "permit setuid 99 from 1000"). The
+same with setgid().
+Some other interesting features are including the IP address which
+we allow the uid to bind to and the binary (creating some kind of trusted
+path execution). For instance:
+ "permit bind 80 from 1000 address 192.168.0.1 exec "/usr/bin/httpd""
+If that same user tries to use another binary on port 80, it will be denied.
+Also, it would be interesting to be able to "deny" as well, for example:
+"deny bind 80 from 1000 address 192.168.3.2"
+In this case, the user would be allowed to bind on all other addresses. 
+Other possibility is to have ACLs for CAP_NET_RAW, allowing a few binaries,
+or users to be able to use RAW/PACKET sockets (ping/traceroute/snort...).
+The idea is to have a flexible syntax to permit all these (and
+eventually other) features.
+
+
+Please do send me feedback on this.
+
+Bruno Morisson <morisson@genhex.org>
+
